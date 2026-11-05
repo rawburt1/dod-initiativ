@@ -1,0 +1,232 @@
+:root {
+  --primary: #bb99ff;
+  --primary-contrast: #000;
+  --text: #fff;
+  --text-muted: rgba(255, 255, 255, 0.7);
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-hover: rgba(255, 255, 255, 0.12);
+  --border: rgba(255, 255, 255, 0.15);
+  --warning: #ffb74d;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --surface: rgba(0, 0, 0, 0.05);
+  --surface-hover: rgba(0, 0, 0, 0.1);
+  --border: rgba(0, 0, 0, 0.15);
+  --warning: #b45309;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: Roboto, system-ui, sans-serif;
+  font-size: 14px;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  height: 100vh;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+header .round {
+  margin-left: auto;
+}
+
+button.lang {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.round {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.counter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.counter span {
+  flex: 1;
+  color: var(--text-muted);
+}
+
+.counter output {
+  min-width: 2ch;
+  text-align: center;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.buttons button:not(.ghost) {
+  flex: 1;
+}
+
+button,
+select {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled),
+select:hover {
+  background: var(--surface-hover);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--primary);
+  color: var(--primary-contrast);
+  border-color: transparent;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--primary);
+  filter: brightness(1.1);
+}
+
+button.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+button.small {
+  padding: 2px 6px;
+}
+
+.list select.move {
+  width: 2em;
+  padding: 2px 0;
+  appearance: none;
+  background: transparent;
+  border-color: transparent;
+  font-weight: normal;
+}
+
+.list select.move:hover {
+  background: var(--surface-hover);
+}
+
+button.hidden {
+  visibility: hidden;
+}
+
+.warning {
+  margin: 0;
+  color: var(--warning);
+  font-size: 12px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: var(--surface);
+}
+
+.list li.active {
+  border-color: var(--primary);
+  box-shadow: inset 4px 0 0 var(--primary);
+}
+
+.list li.acted .name,
+.list li.acted .card,
+.list li.acted select {
+  opacity: 0.45;
+}
+
+.list li.acted .name {
+  text-decoration: line-through;
+}
+
+.list select,
+.card {
+  width: 3.4em;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.list select {
+  padding: 3px 2px;
+}
+
+.name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slot-count {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.center {
+  text-align: center;
+}

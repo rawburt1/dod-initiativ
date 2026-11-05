@@ -1,0 +1,15 @@
+{
+  "name": "DoD Initiativ",
+  "version": "1.0.0",
+  "manifest_version": 1,
+  "description": "Initiativ-tracker med initiativkort för Drakar och Demoner",
+  "icon": "/icon.svg",
+  "author": "Robert Jonsson",
+  "action": {
+    "title": "DoD Initiativ",
+    "icon": "/icon.svg",
+    "popover": "/",
+    "height": 420,
+    "width": 320
+  }
+}
