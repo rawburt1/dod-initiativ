@@ -12,6 +12,16 @@ An initiative tracker for [Owlbear Rodeo](https://www.owlbear.rodeo) built aroun
 - **Swedish and English:** Each player chooses a language with the button in the top right. The choice is saved in their browser.
 - **GM-controlled:** Only the GM can change the initiative. Players can see the turn order and whose turn it is.
 
+## Installation
+
+In Owlbear Rodeo, go to **Profile → Extensions → Add Custom Extension** and enter:
+
+```
+https://rawburt1.github.io/dod-initiativ/manifest.json
+```
+
+Then open a room and enable **DoD Initiativ** in the room's extensions menu (the puzzle piece).
+
 ## Usage
 
 1. Right-click one or more tokens and choose **Add to initiative**.
@@ -40,6 +50,10 @@ npm run build    # type check and build to dist/
 If the dev server runs on a different machine, forward the port with `ssh -L 5173:localhost:5173 <host>`. The port is fixed at 5173, and CORS allows `https://www.owlbear.rodeo` (see `vite.config.ts`).
 
 Code changes reload in the extension right away. After changing `public/manifest.json`, remove the extension and add it again.
+
+### Deployment
+
+Every push to `main` builds the extension and publishes it to GitHub Pages (`.github/workflows/deploy.yml`). The production build is served from `/dod-initiativ/`, which is set as `base` in `vite.config.ts`. That's why the paths in `public/manifest.json` are relative.
 
 ### Project structure
 

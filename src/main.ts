@@ -5,6 +5,9 @@ const ID = "se.dod-initiativ";
 const ITEM_KEY = `${ID}/data`;
 const SCENE_KEY = `${ID}/state`;
 const DEFAULT_CARDS = 10;
+
+/** Sökväg till en fil i public/, oavsett om tillägget körs från / (dev) eller /dod-initiativ/ (GitHub Pages) */
+const asset = (file: string) => `${import.meta.env.BASE_URL}${file}`;
 const MAX_CARDS = 99;
 
 /** Ett initiativkort som en deltagare har */
@@ -379,7 +382,7 @@ function setupContextMenu() {
     id: `${ID}/context-menu`,
     icons: [
       {
-        icon: "/add.svg",
+        icon: asset("add.svg"),
         label: t.menuAdd,
         filter: {
           roles: ["GM"],
@@ -387,7 +390,7 @@ function setupContextMenu() {
         },
       },
       {
-        icon: "/remove.svg",
+        icon: asset("remove.svg"),
         label: t.menuRemove,
         filter: { roles: ["GM"], every: [...tokenLayers] },
       },
@@ -407,7 +410,7 @@ function setupContextMenu() {
     id: `${ID}/context-menu-extra-card`,
     icons: [
       {
-        icon: "/add.svg",
+        icon: asset("add.svg"),
         label: t.menuExtraCard,
         filter: {
           roles: ["GM"],
