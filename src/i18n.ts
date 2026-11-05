@@ -3,7 +3,7 @@
 export type Lang = "sv" | "en";
 
 const sv = {
-  title: "Initiativ",
+  title: "Initiativ - Drakar och Demoner",
   loading: "Laddar…",
   noScene: "Öppna en scen för att använda initiativ-trackern.",
   round: (n: number) => `Runda ${n}`,
@@ -37,7 +37,7 @@ const sv = {
 };
 
 const en: typeof sv = {
-  title: "Initiative",
+  title: "Initiative - Dragonbane",
   loading: "Loading…",
   noScene: "Open a scene to use the initiative tracker.",
   round: (n) => `Round ${n}`,
