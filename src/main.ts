@@ -45,6 +45,8 @@ let combatants: Item[] = [];
 let state: TrackerState = DEFAULT_STATE;
 let isGM = false;
 let sceneReady = false;
+/** Raden där GM håller på att ange antal handlingar (bara lokalt i den här webbläsaren) */
+let editing: { id: string; index: number } | null = null;
 
 // ---------- Hjälpfunktioner ----------
 
@@ -208,9 +210,38 @@ async function setCard(id: string, index: number, card: number | null) {
   await patchSlots(patches);
 }
 
-/** Ge en deltagare ett kort till (utan nummer tills nästa utdelning, eller välj ett manuellt) */
-async function addSlot(id: string) {
-  await updateCombatants(new Map([[id, (slots) => [...slots, { ...EMPTY_SLOT }]]]));
+/**
+ * Sätt hur många handlingar (initiativkort) en varelse har. Nya kort saknar nummer tills nästa
+ * utdelning, eller tills GM väljer ett manuellt. Vid färre kort tas först kort utan nummer bort,
+ * sedan de högsta korten som inte agerat och sist de högsta som redan agerat.
+ */
+async function setSlotCount(id: string, count: number) {
+  count = Math.max(1, Math.min(state.cardCount, count));
+  await updateCombatants(
+    new Map([
+      [
+        id,
+        (slots) => {
+          if (count >= slots.length) return [...slots, ...Array.from({ length: count - slots.length }, () => ({ ...EMPTY_SLOT }))];
+          const removalOrder = slots
+            .map((slot, index) => ({ slot, index }))
+            .sort(
+              (a, b) =>
+                Number(b.slot.card === null) - Number(a.slot.card === null) ||
+                Number(a.slot.acted) - Number(b.slot.acted) ||
+                (b.slot.card ?? 0) - (a.slot.card ?? 0),
+            );
+          const removed = new Set(removalOrder.slice(0, slots.length - count).map((r) => r.index));
+          return slots.filter((_, index) => !removed.has(index));
+        },
+      ],
+    ]),
+  );
+}
+
+function toggleEditing(id: string, index: number) {
+  editing = editing?.id === id && editing.index === index ? null : { id, index };
+  render();
 }
 
 /** Ta bort ett av en deltagares kort. Är det det sista kortet tas deltagaren bort ur initiativet. */
@@ -283,7 +314,26 @@ function render() {
   // Numrera varje deltagares kort i turordning (1/2, 2/2 …) när den har fler än ett
   const seen = new Map<string, number>();
 
-  const rows = sortedRows()
+  // Visa redigeraren under raden som klickades, eller under varelsens första rad om den raden försvunnit
+  const allRows = sortedRows();
+  const editItem = isGM && editing ? combatants.find((c) => c.id === editing!.id) : undefined;
+  if (!editItem) editing = null;
+  const editAfter = editing
+    ? (allRows.find((r) => r.item.id === editing!.id && r.index === editing!.index) ?? allRows.find((r) => r.item.id === editing!.id))
+    : undefined;
+  const editor = (item: Item) => {
+    const count = data(item).slots.length;
+    return `
+        <li class="editor">
+          <span class="editor-label">${t.actionsFor(escapeHtml(displayName(item)))}</span>
+          <button data-action="actions-minus" data-id="${item.id}" ${count <= 1 ? "disabled" : ""} aria-label="${t.fewerActions}">−</button>
+          <output>${count}</output>
+          <button data-action="actions-plus" data-id="${item.id}" ${count >= state.cardCount ? "disabled" : ""} aria-label="${t.moreActions}">+</button>
+          <button class="ghost small" data-action="close-editor" title="${t.close}">✓</button>
+        </li>`;
+  };
+
+  const rows = allRows
     .map((row) => {
       const { item, index, slot } = row;
       const { card, acted } = slot;
@@ -313,15 +363,14 @@ function render() {
       const gmButtons = isGM
         ? `${moveSelect}
            ${doneButton}
-           <button class="ghost small" data-action="add-slot" ${ref} title="${t.addSlot(escapeHtml(displayName(item)))}">+</button>
            <button class="ghost small" data-action="remove" ${ref} title="${count > 1 ? t.removeSlot : t.removeCombatant}">×</button>`
         : "";
       return `
         <li class="${isActive ? "active" : ""} ${acted ? "acted" : ""}">
           ${cardCell}
-          <span class="name">${escapeHtml(displayName(item))}${count > 1 ? ` <span class="slot-count">${ordinal}/${count}</span>` : ""}</span>
+          <span class="name" ${isGM ? `data-action="edit-actions" ${ref} title="${t.editActions}"` : ""}>${escapeHtml(displayName(item))}${count > 1 ? ` <span class="slot-count">${ordinal}/${count}</span>` : ""}</span>
           ${gmButtons}
-        </li>`;
+        </li>${sameRow(row, editAfter) ? editor(item) : ""}`;
     })
     .join("");
 
@@ -347,7 +396,10 @@ app.addEventListener("click", (event) => {
     case "next": return nextTurn();
     case "reset": return resetTracker();
     case "undo": return undoLast();
-    case "add-slot": return addSlot(id);
+    case "edit-actions": return toggleEditing(id, index);
+    case "close-editor": editing = null; return render();
+    case "actions-minus": return setSlotCount(id, data(combatants.find((c) => c.id === id)!).slots.length - 1);
+    case "actions-plus": return setSlotCount(id, data(combatants.find((c) => c.id === id)!).slots.length + 1);
     case "lang": return switchLanguage();
     case "remove": return removeSlot(id, index);
   }

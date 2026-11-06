@@ -219,6 +219,35 @@ button.hidden {
   white-space: nowrap;
 }
 
+.name[data-action] {
+  cursor: pointer;
+}
+
+.name[data-action]:hover {
+  text-decoration: underline;
+}
+
+.list li.editor {
+  background: transparent;
+  border-color: var(--border);
+  margin-bottom: 4px;
+}
+
+.editor-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.editor output {
+  min-width: 2ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 .slot-count {
   color: var(--text-muted);
   font-size: 12px;
