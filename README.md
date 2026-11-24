@@ -8,6 +8,7 @@ An initiative tracker for [Owlbear Rodeo](https://www.owlbear.rodeo) built aroun
 - **Turn order:** Cards are marked as done one at a time, lowest to highest. Use **Next** or ✓ on the card whose turn it is. Use ↶ to undo the card most recently marked done.
 - **Swapping cards:** Use ↓ to swap cards with someone further down the turn order who hasn't acted yet. Each card can be swapped once per round.
 - **Multiple cards per creature:** Give a creature more cards with **+** on its row, or right-click its token and choose *Extra initiative card*. Remove a card with ×.
+- **Dead creatures:** Right-click a token and choose *Dead*. It stays in the list, greyed out and struck through, but gets no cards. On the map the token moves to the Prop layer and gets a dark red ring. Choose *Revive* to move it back to its original layer.
 - **Manual cards:** The GM can assign a card by hand. If someone else already holds that card, the two swap.
 - **Swedish and English:** Each player chooses a language with the button in the top right. The choice is saved in their browser.
 - **GM-controlled:** Only the GM can change the initiative. Players can see the turn order and whose turn it is.

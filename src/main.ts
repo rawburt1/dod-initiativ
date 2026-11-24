@@ -1,9 +1,12 @@
-import OBR, { Item, Theme, isImage } from "@owlbear-rodeo/sdk";
+import OBR, { Item, Layer, Theme, buildShape, isImage } from "@owlbear-rodeo/sdk";
 import { lang, setLang, t } from "./i18n";
 
 const ID = "se.dod-initiativ";
 const ITEM_KEY = `${ID}/data`;
 const SCENE_KEY = `${ID}/state`;
+/** Sätts på den röda ringen runt en död varelse, med varelsens token-id som värde */
+const RING_KEY = `${ID}/dead-ring`;
+const DEAD_COLOR = "#8b0000";
 const DEFAULT_CARDS = 10;
 
 /** Sökväg till en fil i public/, oavsett om tillägget körs från / (dev) eller /dod-initiativ/ (GitHub Pages) */
@@ -21,6 +24,10 @@ interface Slot {
 /** Sparas på varje token som är med i initiativet. En varelse kan ha flera kort. */
 interface Combatant {
   slots: Slot[];
+  /** Död: ligger kvar i listan men får inga kort */
+  dead?: boolean;
+  /** Lagret tokenen låg på innan den dog, så att den kan flyttas tillbaka */
+  layer?: Layer;
 }
 
 /** En rad i turordningen: ett av en deltagares kort */
@@ -53,8 +60,13 @@ let editing: { id: string; index: number } | null = null;
 /** Läser deltagardata. Äldre data med ett enda kort (`{ card, acted }`) görs om till en lista. */
 function data(item: Item): Combatant {
   const raw = item.metadata[ITEM_KEY] as Partial<Combatant> & Partial<Slot>;
-  if (Array.isArray(raw?.slots) && raw.slots.length > 0) return { slots: raw.slots };
-  return { slots: [{ card: raw?.card ?? null, acted: raw?.acted ?? false, swapped: raw?.swapped ?? false }] };
+  const extra: Omit<Combatant, "slots"> = raw?.dead ? { dead: true, layer: raw.layer } : {};
+  if (Array.isArray(raw?.slots) && raw.slots.length > 0) return { slots: raw.slots, ...extra };
+  return { slots: [{ card: raw?.card ?? null, acted: raw?.acted ?? false, swapped: raw?.swapped ?? false }], ...extra };
+}
+
+function isDead(item: Item): boolean {
+  return data(item).dead === true;
 }
 
 function displayName(item: Item): string {
@@ -70,8 +82,9 @@ function sameRow(a: Row | undefined, b: Row | undefined): boolean {
   return !!a && !!b && a.item.id === b.item.id && a.index === b.index;
 }
 
+/** Antal kort som behövs vid utdelning. Döda varelser får inga kort. */
 function totalSlots(): number {
-  return combatants.reduce((sum, item) => sum + data(item).slots.length, 0);
+  return combatants.filter((item) => !isDead(item)).reduce((sum, item) => sum + data(item).slots.length, 0);
 }
 
 /** Alla kort i turordning: lägst kort först, kort utan nummer sist */
@@ -131,7 +144,7 @@ async function updateCombatants(changes: Map<string, (slots: Slot[]) => Slot[] |
       for (const item of items) {
         const slots = changes.get(item.id)!(data(item).slots.map((slot) => ({ ...slot })));
         if (slots === null || slots.length === 0) delete item.metadata[ITEM_KEY];
-        else item.metadata[ITEM_KEY] = { slots } satisfies Combatant;
+        else item.metadata[ITEM_KEY] = { ...data(item), slots } satisfies Combatant;
       }
     },
   );
@@ -160,7 +173,7 @@ async function dealCards() {
   let next = 0;
   const changes = new Map<string, (slots: Slot[]) => Slot[]>();
   for (const item of combatants) {
-    const cards = data(item).slots.map(() => deck[next++]);
+    const cards = data(item).slots.map(() => (isDead(item) ? null : deck[next++]));
     changes.set(item.id, () => cards.map((card) => ({ card, acted: false, swapped: false })));
   }
   await updateCombatants(changes);
@@ -259,6 +272,91 @@ async function changeCardCount(delta: number) {
   if (cardCount !== state.cardCount) await saveState({ cardCount });
 }
 
+// ---------- Döda varelser ----------
+
+/**
+ * Mörkröd ring runt en token. Den fästs vid tokenen så att den följer med när tokenen flyttas,
+ * skalas om eller tas bort. Ringen ligger på prop-lagret precis ovanför den döda tokenen.
+ */
+function deathRing(item: Item, sceneDpi: number): Item {
+  let size = sceneDpi;
+  let center = item.position;
+  if (isImage(item)) {
+    const factor = sceneDpi / item.grid.dpi;
+    const width = item.image.width * factor * Math.abs(item.scale.x);
+    const height = item.image.height * factor * Math.abs(item.scale.y);
+    size = Math.max(width, height);
+    // Tokenens position är dess ankarpunkt (grid.offset), oftast mitten av bilden
+    center = {
+      x: item.position.x + (item.image.width / 2 - item.grid.offset.x) * factor * item.scale.x,
+      y: item.position.y + (item.image.height / 2 - item.grid.offset.y) * factor * item.scale.y,
+    };
+  }
+  const stroke = Math.max(4, sceneDpi / 12);
+  return buildShape()
+    .shapeType("CIRCLE")
+    .width(size + stroke)
+    .height(size + stroke)
+    .position(center)
+    .strokeColor(DEAD_COLOR)
+    .strokeWidth(stroke)
+    .fillOpacity(0)
+    .layer("PROP")
+    .attachedTo(item.id)
+    .visible(item.visible)
+    .locked(true)
+    .disableHit(true)
+    .metadata({ [RING_KEY]: item.id })
+    .build();
+}
+
+/** Markera varelser som döda: korten tas bort, tokenen flyttas till prop-lagret och får en röd ring */
+async function markDead(ids: string[]) {
+  const targets = combatants.filter((item) => ids.includes(item.id) && !isDead(item));
+  if (targets.length === 0) return;
+  const sceneDpi = await OBR.scene.grid.getDpi();
+  const rings = targets.map((item) => deathRing(item, sceneDpi));
+  await OBR.scene.items.updateItems(
+    targets.map((item) => item.id),
+    (items) => {
+      for (const item of items) {
+        const { slots } = data(item);
+        item.metadata[ITEM_KEY] = {
+          slots: slots.map(() => ({ ...EMPTY_SLOT })),
+          dead: true,
+          layer: item.layer,
+        } satisfies Combatant;
+        item.layer = "PROP";
+      }
+    },
+  );
+  await OBR.scene.items.addItems(rings);
+}
+
+/** Återuppliva: tokenen flyttas tillbaka till sitt gamla lager och ringen försvinner. Korten delas ut nästa runda. */
+async function revive(ids: string[]) {
+  const targets = combatants.filter((item) => ids.includes(item.id) && isDead(item));
+  if (targets.length === 0) return;
+  await OBR.scene.items.updateItems(
+    targets.map((item) => item.id),
+    (items) => {
+      for (const item of items) {
+        const { slots, layer } = data(item);
+        item.metadata[ITEM_KEY] = { slots } satisfies Combatant;
+        item.layer = layer ?? "CHARACTER";
+      }
+    },
+  );
+  // Ringen tas bort av removeOrphanRings när ändringen kommer tillbaka via onItemsChange
+}
+
+/** Tar bort ringar vars varelse inte längre är död, t.ex. när den tagits bort ur initiativet */
+async function removeOrphanRings(items: Item[]) {
+  const dead = new Set(combatants.filter(isDead).map((item) => item.id));
+  const orphans = items.filter((item) => item.metadata[RING_KEY] !== undefined && !dead.has(item.metadata[RING_KEY] as string));
+  if (orphans.length > 0) await OBR.scene.items.deleteItems(orphans.map((item) => item.id));
+}
+
 // ---------- Rendering ----------
 
 function render() {
@@ -342,6 +440,7 @@ function render() {
       const ordinal = (seen.get(item.id) ?? 0) + 1;
       seen.set(item.id, ordinal);
       const isActive = sameRow(row, active);
+      const dead = isDead(item);
 
       const targets = swapTargets(row);
       const moveSelect = targets.length
@@ -358,7 +457,7 @@ function render() {
           ? `<button class="ghost small" data-action="undo" title="${t.undoDone}">↶</button>`
           : hidden("✓");
       const cardCell = isGM
-        ? `<select data-action="card" ${ref} aria-label="${t.cardLabel}">${cardOptions(card)}</select>`
+        ? `<select data-action="card" ${ref} aria-label="${t.cardLabel}" ${dead ? "disabled" : ""}>${cardOptions(card)}</select>`
         : `<span class="card">${card ?? "–"}</span>`;
       const gmButtons = isGM
         ? `${moveSelect}
@@ -366,7 +465,7 @@ function render() {
            <button class="ghost small" data-action="remove" ${ref} title="${count > 1 ? t.removeSlot : t.removeCombatant}">×</button>`
         : "";
       return `
-        <li class="${isActive ? "active" : ""} ${acted ? "acted" : ""}">
+        <li class="${isActive ? "active" : ""} ${acted ? "acted" : ""} ${dead ? "dead" : ""}" ${dead ? `title="${t.dead}"` : ""}>
           ${cardCell}
           <span class="name" ${isGM ? `data-action="edit-actions" ${ref} title="${t.editActions}"` : ""}>${escapeHtml(displayName(item))}${count > 1 ? ` <span class="slot-count">${ordinal}/${count}</span>` : ""}</span>
           ${gmButtons}
@@ -446,6 +545,12 @@ function setupContextMenu() {
         label: t.menuRemove,
         filter: { roles: ["GM"], every: [...tokenLayers] },
       },
+      {
+        // Döda varelser ligger på prop-lagret men ska också kunna tas bort ur initiativet
+        icon: asset("remove.svg"),
+        label: t.menuRemove,
+        filter: { roles: ["GM"], every: [{ key: ["metadata", ITEM_KEY, "dead"], value: true }] },
+      },
     ],
     onClick(context) {
       const add = context.items.every((item) => item.metadata[ITEM_KEY] === undefined);
@@ -474,6 +579,34 @@ function setupContextMenu() {
       updateCombatants(new Map(context.items.map((item) => [item.id, (slots: Slot[]) => [...slots, { ...EMPTY_SLOT }]])));
     },
   });
+
+  OBR.contextMenu.create({
+    id: `${ID}/context-menu-dead`,
+    icons: [
+      {
+        icon: asset("dead.svg"),
+        label: t.menuDead,
+        filter: {
+          roles: ["GM"],
+          every: [
+            ...tokenLayers,
+            { key: ["metadata", ITEM_KEY], value: undefined, operator: "!=" },
+            { key: ["metadata", ITEM_KEY, "dead"], value: true, operator: "!=" },
+          ],
+        },
+      },
+      {
+        icon: asset("revive.svg"),
+        label: t.menuRevive,
+        filter: { roles: ["GM"], every: [{ key: ["metadata", ITEM_KEY, "dead"], value: true }] },
+      },
+    ],
+    onClick(context) {
+      const ids = context.items.map((item) => item.id);
+      if (context.items.every((item) => isDead(item))) revive(ids);
+      else markDead(ids);
+    },
+  });
 }
 
 /** Byter mellan svenska och engelska för den här spelaren */
@@ -487,6 +620,7 @@ function switchLanguage() {
 function onItemsChange(items: Item[]) {
   combatants = items.filter((item) => item.metadata[ITEM_KEY] !== undefined);
   render();
+  if (isGM) removeOrphanRings(items);
 }
 
 function onSceneMetadataChange(metadata: Record<string, unknown>) {

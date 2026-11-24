@@ -37,6 +37,9 @@ const sv = {
   menuAdd: "Lägg till i initiativ",
   menuRemove: "Ta bort från initiativ",
   menuExtraCard: "Extra initiativkort",
+  menuDead: "Död",
+  menuRevive: "Återuppliva",
+  dead: "Död – får inga kort",
   switchLanguage: "Byt språk till engelska",
 };
 
@@ -75,6 +78,9 @@ const en: typeof sv = {
   menuAdd: "Add to initiative",
   menuRemove: "Remove from initiative",
   menuExtraCard: "Extra initiative card",
+  menuDead: "Dead",
+  menuRevive: "Revive",
+  dead: "Dead – gets no cards",
   switchLanguage: "Switch language to Swedish",
 };
 

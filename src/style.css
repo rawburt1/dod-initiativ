@@ -200,6 +200,19 @@ button.hidden {
   text-decoration: line-through;
 }
 
+/* Död varelse: grå och överstruken i mörkrött, så att den inte förväxlas med "har agerat" */
+.list li.dead .name,
+.list li.dead .card,
+.list li.dead select {
+  opacity: 0.45;
+}
+
+.list li.dead .name {
+  text-decoration: line-through;
+  text-decoration-color: #8b0000;
+  text-decoration-thickness: 2px;
+}
+
 .list select,
 .card {
   width: 3.4em;
